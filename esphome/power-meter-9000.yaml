@@ -27,7 +27,11 @@ captive_portal:
 
 uart:
   tx_pin: GPIO40
-  rx_pin: GPIO39
+  rx_pin:
+    number: GPIO39
+    mode:
+      input: true
+      pullup: true
   baud_rate: 4800
   parity: NONE
   stop_bits: 1
