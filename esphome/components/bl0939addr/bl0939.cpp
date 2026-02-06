@@ -154,7 +154,8 @@ void BL0939::setup() {
 
   // --- Anti-creep threshold ---
   // Default is 0x0B
-  bl0939_write_reg24(this, BL0939_REG_WA_CREEP, (uint32_t) this->wa_creep_);
+  uint32_t wc = this->wa_creep_;
+  bl0939_write_reg24(this, BL0939_REG_WA_CREEP, (wc << 16) | (wc << 8) | wc);
 
   this->flush();
 
