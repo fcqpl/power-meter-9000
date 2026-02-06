@@ -21,6 +21,7 @@ static const uint8_t BL0939_REG_MODE = 0x18;
 static const uint8_t BL0939_REG_SOFT_RESET = 0x19;
 static const uint8_t BL0939_REG_USR_WRPROT = 0x1A;
 static const uint8_t BL0939_REG_TPS_CTRL = 0x1B;
+static const uint8_t BL0939_REG_WA_CREEP = 0x17;
 
 static Mutex bl0939_global_lock;
 
@@ -30,6 +31,29 @@ uint8_t BL0939::write_command() {
 
 uint8_t BL0939::read_command() {
   return BL0939_READ_COMMAND | this->address_;
+}
+
+uint8_t bl0939_write_checksum(uint8_t cmd, uint8_t reg, uint8_t d0, uint8_t d1, uint8_t d2) {
+  uint8_t sum = cmd;
+  sum += reg;
+  sum += d0;
+  sum += d1;
+  sum += d2;
+  sum ^= 0xFF;
+  return sum;
+}
+
+void bl0939_write_reg24(esphome::bl0939::BL0939 *dev, uint8_t reg, uint32_t value24) {
+  // BL0939 uses little-endian payload ordering in these init frames:
+  // examples in your code: reg MODE 0x18 with 0x00,0x10,0x00 == 0x001000
+  uint8_t d0 = (value24 >> 0) & 0xFF;
+  uint8_t d1 = (value24 >> 8) & 0xFF;
+  uint8_t d2 = (value24 >> 16) & 0xFF;
+
+  uint8_t cmd = dev->write_command();
+  uint8_t frame[6] = {cmd, reg, d0, d1, d2, bl0939_write_checksum(cmd, reg, d0, d1, d2)};
+  dev->write_array(frame, 6);
+  delay(1);
 }
 
 void BL0939::loop() {
@@ -127,6 +151,11 @@ void BL0939::setup() {
     this->write_array(i, 6);
     delay(1);
   }
+
+  // --- Anti-creep threshold ---
+  // Default is 0x0B
+  bl0939_write_reg24(this, BL0939_REG_WA_CREEP, (uint32_t) this->wa_creep_);
+
   this->flush();
 
   bl0939_global_lock.unlock();
